@@ -12,17 +12,17 @@ This tool comes in several flavors, in order of creation/complexity.
 ### cat_buf
 
 Reads/writes into 1K buffer repeatedly over file, over all files
--> 800 Bytes
+`-> 800 Bytes`
 
 ### cat_mmap_full
 
 uses mmap syscall to fetch each input file as a whole at once and then write it out, over all files
--> 760 Bytes
+`-> 760 Bytes`
 
 ### cat_mmap_full
 
 Same as cat_mmap_full but includes its own minmal(ish) ELF64 header
--> 352 Bytes
+`-> 352 Bytes`
 
 ## TODOs
 
