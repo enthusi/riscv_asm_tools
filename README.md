@@ -7,11 +7,25 @@ Currently implemented: `cat`.
 
 ## cat
 
-Early version. Does it's job but no error handling or optimisations YET.
+This tool comes in several flavors, in order of creation/complexity.
+
+### cat_buf
+
+Reads/writes into 1K buffer repeatedly over file, over all files
+-> 800 Bytes
+
+### cat_mmap_full
+
+uses mmap syscall to fetch each input file as a whole at once and then write it out, over all files
+-> 760 Bytes
+
+### cat_mmap_full
+
+Same as cat_mmap_full but includes its own minmal(ish) ELF64 header
+-> 352 Bytes
 
 ## TODOs
 
-- Construct own ELF headers to shrink sizes further.
-- branch into minimal size and 'most proper'.
-- add error handling.
-- consider mmap for read vs. fixed buffer.
+- maybe add error handling to cat family
+- mandelbrot writing to file
+- mandelbrot using fork()
