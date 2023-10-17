@@ -9,7 +9,7 @@ Currently implemented: `cat, mandelbrot`.
 
 This code creates a buffer, injects a BMP header, generates a palette table and computes a mandelbrot graphic
 to be written as a BMP file in 2048x1024 pix.
-`-> 6555558 Bytes`
+`-> 658 Bytes`
 
 ## cat
 
