@@ -1,4 +1,4 @@
-# A (future) collection of assembly replacement for simple shell tools
+# A collection of small programs and tools fully written in RiscV 64bit assembly
 
 This is for learning and fun. I restrict myself to actual syscalls and RiscV 64bit.
 All written for the GNU-as.
