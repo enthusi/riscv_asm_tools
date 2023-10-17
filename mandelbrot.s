@@ -2,14 +2,12 @@
 
 .equ FILENO_STDOUT, 1
 .equ FILENO_STDIN, 0
-
 .equ SEEK_SET,		0
 .equ SEEK_END,		2
 .equ PROT_READ,		0x1
 .equ PROT_WRITE,		0x2
 .equ MAP_SHARED,		0x01
 .equ MAP_ANONYMOUS,		0x20
-
 .equ AT_FDCWD, -100
 .equ O_WRONLY, 1
 .equ O_RDWR, 2
@@ -56,66 +54,55 @@ phdr:
 phdrsize = . - phdr
 
 _start:
-    li t3 ,1 #file counter
-    ld t4, 0(sp)
-    mv s6, sp #keep it for a clean exit later
 
-openFile: 
-#compute size
+#compute file size
+ 	li 		a0, 54+4*256 #bmp header + PAL table
+	li 		s10, 2048
+	li 		s11, 1024
+	mul 	a5,	s10,s11
+	add 	a0,	a0,a5
+	mv 		s5,	a0 #keep size for later
 
- 	li a0, 54+4*256 #bmp header + PAL table
-	li s10, 2048
-	li s11, 1024
-	mul a5,s10,s11
-	add a0,a0,a5
-	mv s5,a0 #keep size for later
-
-	/*	Do mapping	*/
-	mv		a0,		zero
-	mv a1, s5 #file size
-	li		a2,		(PROT_READ | PROT_WRITE)
-	li		a3,		(MAP_ANONYMOUS | MAP_SHARED)
-	mv a5, zero
-	mv		a4,		zero
-	li		a7,		sys_mmap
+	mv		a0,	zero
+	mv 		a1, s5 
+	li		a2,	(PROT_READ | PROT_WRITE)
+	li		a3,	(MAP_ANONYMOUS | MAP_SHARED)
+	mv 		a5, zero
+	mv		a4,	zero
+	li		a7,	sys_mmap
 	ecall
-	mv		s0,		a0
+	mv		s0,	a0
 	
 #======================================	
 #first inject BMP header
-	la t4, bmpheader
-	mv t5, s0
-	li t6, 8*7
+	la 		t4, bmpheader
+	mv 		t5, s0
+	li 		t6, 8*7 
 head_write_loop:
-	lb a0, 0(t4)
-	sb a0, 0(t5)
-	addi t5,t5,1
-	addi t4,t4,1
-	addi t6,t6,-1
-	bge t6,zero,head_write_loop
+	lb	 	a0, 0(t4)
+	sb 		a0, 0(t5)
+	addi 	t5,	t5,	1
+	addi 	t4,	t4,	1
+	addi 	t6,	t6,	-1
+	bge 	t6,	zero,	head_write_loop
 	
-	#fill buffer here, dont use s5, s0
-	mv t5, s0 #the local pointer into buffer
-	mv t4, s0 #also used for palette
-	mv t6, s5 #remember the size
+	mv 		t5, s0 #the local pointer into buffer
+	mv 		t4, s0 #also used for palette
+	mv 		t6, s5 #remember the size
 
-	
-#change sizes
-	sh s10,0x12(s0) #size x
-	sh s11,0x16(s0) #size y
+	sh 		s10,	0x12(s0) #size x
+	sh 		s11,	0x16(s0) #size y
 #================
-	li t3, 0  
+	#li 		t3, 0  
+	mv 		t3, zero
 pal_loop:
-	mv a0, t3
-#a0 = v
-
+	mv 		a0, t3
 #red = t0
 #green = t1
 #blue = t2
-
-    li t0,255
-    mv t1,t0
-    mv t2,t0 
+    li 		t0,	255
+    mv 		t1,	t0
+    mv 		t2,	t0 
     
 #A 0..63
 #B 64..127
@@ -126,91 +113,92 @@ pal_loop:
     li a2, 128
     li a3, 192
 
-    bge a0, a1, B #is a0 >= 64?
+    bge 	a0, a1, B #is a0 >= 64?
 A:
-    slli a0,a0,2 #*1024/256 = *4
-    mv t0, zero
-	mv t1, a0
-    jal E
+    slli 	a0,a0,2 #*1024/256 = *4
+    mv 		t0, zero
+	mv 		t1, a0
+    j E
 B:   
-    bge a0, a2, C #is a0 >= 128?
-    mv t0, zero
-    sub s2, a2, a0 # s2=64-v
-    slli s2,s2,2 #*1024/256 = *4
-    addi t2,s2,255 # blue = t2
-    jal E
+    bge 	a0, a2, C #is a0 >= 128?
+    mv 		t0, zero
+    sub 	s2, a2, a0 # s2=64-v
+    slli 	s2,	s2,	2 #*1024/256 = *4
+    addi 	t2,	s2,	255 # blue = t2
+    j E
 C:
-    bge a0, a3, D #is a0 >= 192?
-    mv t2, zero
-    sub s2, a0, a2 # s2=v-128
-    slli t0,s2,2
-    jal E
+    bge 	a0, a3, D #is a0 >= 192?
+    mv 		t2, zero
+    sub 	s2, a0, a2 # s2=v-128
+    slli 	t0,	s2,	2
+    j E
 D:
-    mv t2, zero
-    sub s2, a3, a0 # a5=192-v
-    slli s2,s2,2 #*1024/256 = *4
-    addi t1,s2,255 # green = t1
+    mv 		t2, zero
+    sub 	s2, a3, a0 # a5=192-v
+    slli 	s2,	s2,	2 #*1024/256 = *4
+    addi 	t1,	s2,	255 # green = t1
 E:    
     #t2+t1<<8+t0<<16
-    slli t0,t0,16
-    slli t1,t1,8
-    add t2,t2,t0
-    add t2,t2,t1
-	slli t2,t2,8
+    slli 	t0,	t0,	16
+    slli 	t1,	t1,	8
+    add 	t2,	t2,	t0
+    add 	t2,	t2,	t1
+	slli 	t2,	t2,	8
     #=====================	
-   	sw t2, 0x3a(t4)
-	addi t4,t4,4 #destination in buffer
-	addi t3,t3,1
-	li s3, 255
-	ble t3,s3,pal_loop
+   	sw 		t2,	0x3a(t4)
+	addi 	t4,	t4,	4 #destination in buffer
+	addi 	t3,	t3,	1
+	li 		s3, 255
+	ble 	t3,	s3,	pal_loop
     
-#    j skip_math 
 do_math:
-    #++++++++++++++++++++++++++++++++++++++++++++++
-    mv a5,s10
-	mv a6,s11
+    mv 		a5,	s10
+	mv 		a6,	s11
 	#fixpoint math with 2.13 bit precision.
-    li a1,-17337 #-0.7 * 2**13 - 3.0769*2**12)
-    li a2,  9869 
-    li a3,-10000
-    li a4, 0000
+    li 		a1,	-17337 
+    li 		a2,   9869 
+    li 		a3,	-10000
+    #li 		a4,      0
+	mv 		a4,	zero
     
-    li t3,16384 
-    li t4,268435456 # mandelbrot threshold
+    li 		t3,	16384 
+    li 		t4,	268435456 # mandelbrot threshold
    
     #s2=xstep
     #s3=ystep 
     #s4 divider 5
     #properly compute this based on x and y size!
 
-	#li s4,20
-	srli s4,s10,5#/32
-    sub s2,a2,a1 #(xmax-xmin)
-    div s2,s2,s4 #32/SCREEN_WIDTH = /5
+	srli 	s4,	s10, 5 #/32
+    sub 	s2,	a2,	a1 #(xmax-xmin)
+    div 	s2,	s2,	s4 #32/SCREEN_WIDTH = /5
 
-	srli s4,s11,5
-	sub s3,a4,a3 #(xmax-xmin)
-    div s3,s3,s4 #32/SCREEN_WIDTH = /5
+	srli 	s4,	s11, 5
+	sub 	s3,	a4,	a3 #(xmax-xmin)
+    div 	s3,	s3,	s4 #32/SCREEN_WIDTH = /5
     
-    li s5,0 #Y
+    #li 		s5,	0 #Y
+	mv 		s5, zero
 loopy:
-    #s7 = q
-    mul s7,s5,s3 #y*ys
-    srai s7,s7,4 #/16
-    add s7,s7,a3 #+ymin
-    li s6,0 #X
+    mul		s7,	s5,	s3 #y*ys
+    srai 	s7,	s7,	4 #/16
+    add 	s7,	s7,	a3 #+ymin
+    #li 		s6,	0 #X
+	mv		s6, zero
 
 loopx:
-    #s8 = p
-    mul s8,s6,s2 #x*xs
-    srai s8,s8,5 #/32
-    add s8,s8,a1 #+xmin
+    mul 	s8,	s6,	s2 #x*xs
+    srai 	s8,	s8,	5 #/32
+    add 	s8,	s8,	a1 #+xmin
 
-    li s9,0#xn
-    li s10,0#x0
-    li s11,0#y0
+    #li 		s9,	 0	#xn
+    #li 		s10, 0	#x0
+    #li 		s11, 0	#y0
+	mv 		s9, zero
+	mv		s10, zero
+	mv 		s11, zero
     
-    li t2,128*2 #maxiter
+    li 		t2,	128*2 #maxiter
 innerloop:
     #xn=mul((x0+y0),(x0-y0)) +p;
     add t0,s10,s11
@@ -265,15 +253,15 @@ skip_math:
 	ecall
     mv s1,a0
 writeOut:
-  mv a2 ,s5 #we write as much as we mapped
-  mv a0, s1#FILENO_STDOUT
-  mv a1, s0 #buffer
-  li a7, sys_write
-  ecall
+  	mv a2 ,s5 #we write as much as we mapped
+  	mv a0, s1#FILENO_STDOUT
+  	mv a1, s0 #buffer
+  	li a7, sys_write
+  	ecall
 
-  mv a0,s1 	
-  li a7, sys_close
-  ecall
+  	mv a0,s1 	
+  	li a7, sys_close
+    ecall
 
 	#unmap here
 	mv		a0,		s0 #adr
@@ -284,14 +272,13 @@ writeOut:
     
 exit:	
     mv sp, s6	
-    li a0,0
+    #li a0,0
+	mv		a0, zero
     li a7, sys_exit
     ecall
     
 outfilename:
 .asciz "res.bmp"
- 
-.align 4
 bmpheader:
 .byte 0x42,0x4d,0x36,0x36,0x00,0x00,0x00,0x00, 0x00,0x00,0x36,0x04,0x00,0x00,0x28,0x00
 .byte 0x00,0x00,0x00,0x00,0x00,0x00,0x50,0x00, 0x00,0x00,0x01,0x00,0x08,0x00,0x00,0x00
