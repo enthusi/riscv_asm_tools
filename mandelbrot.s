@@ -25,6 +25,8 @@
 .text
 
 load_address = 0x010000 
+#see, e.g., here for details:
+#https://gist.github.com/x0nu11byt3/bcb35c3de461e5fb66173071a2379779
 ehdr:
     .byte 0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0
     .half 2                                 #   e_type
@@ -56,19 +58,36 @@ phdrsize = . - phdr
 _start:
 
 #compute file size
- 	li 		a0, 54+4*256 #bmp header + PAL table
+ 	li 		t2, 54+4*256 #bmp header + PAL table
 	li 		s10, 2048
 	li 		s11, 1024
 	mul 	a5,	s10,s11
-	add 	a0,	a0,a5
+	add 	a0,	t2,a5
 	mv 		s5,	a0 #keep size for later
 
-	mv		a0,	zero
+#in case we have 2 CLI arguments, consider them x, y size integers
+	ld		a0,	0(sp) 		#argc 1 on stack
+	addi	a0, 	a0,	 -3#was it 1? Then fetch from STDIN
+	bnez	a0,	use_default_size
+fetch_size_from_argv:
+	ld		a0, 16(sp) #adr of argv[1]
+    call    atoi #changes a0,a1,a2,a3
+	mv s10, a1
+
+	ld		a0, 24(sp) #adr of argv[1]
+    call    atoi
+	mv s11, a1
+
+	mul 	a5,	s10,s11
+	add 	s5,t2,a5
+
+use_default_size:
+	li		a0,	0
 	mv 		a1, s5 
 	li		a2,	(PROT_READ | PROT_WRITE)
 	li		a3,	(MAP_ANONYMOUS | MAP_SHARED)
-	mv 		a5, zero
-	mv		a4,	zero
+	li 		a5, 0
+	li		a4,	0
 	li		a7,	sys_mmap
 	ecall
 	mv		s0,	a0
@@ -94,7 +113,7 @@ head_write_loop:
 	sh 		s11,	0x16(s0) #size y
 #================
 	#li 		t3, 0  
-	mv 		t3, zero
+	li 		t3, 0
 pal_loop:
 	mv 		a0, t3
 #red = t0
@@ -116,24 +135,24 @@ pal_loop:
     bge 	a0, a1, B #is a0 >= 64?
 A:
     slli 	a0,a0,2 #*1024/256 = *4
-    mv 		t0, zero
+    li 		t0, 0
 	mv 		t1, a0
     j E
 B:   
     bge 	a0, a2, C #is a0 >= 128?
-    mv 		t0, zero
+    li 		t0, 0
     sub 	s2, a2, a0 # s2=64-v
     slli 	s2,	s2,	2 #*1024/256 = *4
     addi 	t2,	s2,	255 # blue = t2
     j E
 C:
     bge 	a0, a3, D #is a0 >= 192?
-    mv 		t2, zero
+    li 		t2, 0
     sub 	s2, a0, a2 # s2=v-128
     slli 	t0,	s2,	2
     j E
 D:
-    mv 		t2, zero
+    li 		t2, 0
     sub 	s2, a3, a0 # a5=192-v
     slli 	s2,	s2,	2 #*1024/256 = *4
     addi 	t1,	s2,	255 # green = t1
@@ -158,8 +177,7 @@ do_math:
     li 		a1,	-17337 
     li 		a2,   9869 
     li 		a3,	-10000
-    #li 		a4,      0
-	mv 		a4,	zero
+    li 		a4,      0
     
     li 		t3,	16384 
     li 		t4,	268435456 # mandelbrot threshold
@@ -177,28 +195,23 @@ do_math:
 	sub 	s3,	a4,	a3 #(xmax-xmin)
     div 	s3,	s3,	s4 #32/SCREEN_WIDTH = /5
     
-    #li 		s5,	0 #Y
-	mv 		s5, zero
+    li 		s5,	0 #y
 loopy:
     mul		s7,	s5,	s3 #y*ys
     srai 	s7,	s7,	4 #/16
     add 	s7,	s7,	a3 #+ymin
-    #li 		s6,	0 #X
-	mv		s6, zero
+    li 		s6,	0 #X
 
 loopx:
     mul 	s8,	s6,	s2 #x*xs
     srai 	s8,	s8,	5 #/32
     add 	s8,	s8,	a1 #+xmin
 
-    #li 		s9,	 0	#xn
-    #li 		s10, 0	#x0
-    #li 		s11, 0	#y0
-	mv 		s9, zero
-	mv		s10, zero
-	mv 		s11, zero
+    li 		s9,	 0	#xn
+    li 		s10, 0	#x0
+    li 		s11, 0	#y0
     
-    li 		t2,	128*2 #maxiter
+    li 		t2,	128  #maxiter
 innerloop:
     #xn=mul((x0+y0),(x0-y0)) +p;
     add t0,s10,s11
@@ -268,15 +281,42 @@ writeOut:
 	mv		a1,		s5 #size
 	li		a7,		sys_munmap
 	ecall
-
     
 exit:	
     mv sp, s6	
-    #li a0,0
-	mv		a0, zero
+    li a0,0
     li a7, sys_exit
     ecall
-    
+
+
+atoi:
+	#adr in a0
+	li a1, 0
+	li a4, 0
+seek:
+	lbu a2,0(a0)
+	beqz a2, endreached
+	addi a0,a0,1
+	addi a4,a4,1
+    j seek
+endreached:	
+	li a3,1 #start multiplier for last digit
+	li a5,10 #factor per digit
+	#get one back after end and then for each further digit
+convert:
+	addi a0,a0,-1
+	lbu a2, 0(a0)
+	#sanity check? >= '0' and <= '9'?
+	#not for now ;-)
+	addi a2,a2,-48
+	mul a2,a2,a3
+	add a1,a1,a2
+	mul a3,a3,a5
+    addi a4,a4,-1
+	bgtz a4, convert
+done:
+	ret
+
 outfilename:
 .asciz "res.bmp"
 bmpheader:
