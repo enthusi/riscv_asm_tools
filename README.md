@@ -7,9 +7,10 @@ Currently implemented: `cat, mandelbrot`.
 
 ## mandelbrot
 
-This code creates a buffer, injects a BMP header, generates a palette table and computes a mandelbrot graphic
-to be written as a BMP file in 2048x1024 pix.
-`-> 658 Bytes`
+This code creates a buffer, injects a BMP header, generates an RGB palette table and computes a mandelbrot graphic
+to be written as a BMP file in 2048x1024 pix as default. You can provide two integers as command line arguments for a specific x y size (new ATOI() asm code).
+`./mandelbrot 8192 4096` takes 10 seconds on my VisionFive2.
+`-> 708 Bytes`.
 
 ## cat
 
