@@ -37,3 +37,7 @@ Same as cat_mmap_full but includes its own minmal(ish) ELF64 header
 
 - maybe add error handling to cat family
 - mandelbrot using fork()
+## Notes/Warnings
+
+- compressed instructions don't take `x0` as second argument for `mv` anymore.
+- GNU-as translates `mv a0,zero` into `li a0,0` but will NOT compress it. Use `li a0,0` straight away.
